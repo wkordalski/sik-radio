@@ -44,6 +44,9 @@ namespace asio {
 
         virtual void send(std::vector<T> data) = 0;
         virtual std::vector<T> receive(std::size_t size) = 0;
+
+        virtual std::size_t get_input_buffer_size() = 0;
+        virtual std::size_t get_output_buffer_size() = 0;
     };
 
 

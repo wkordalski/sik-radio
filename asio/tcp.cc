@@ -83,7 +83,6 @@ namespace asio {
             std::vector<Byte> buffer;
             buffer.resize(4096);
             int red = read(fd, buffer.data(), 4096);
-            std::clog << "Red = " << red << std::endl;
             if(red < 0) {
                 if(errno != EAGAIN) {
                     // TODO: on_error should be called
@@ -192,6 +191,36 @@ namespace asio {
 
     void TCPConnection::disconnect(bool reset) {
         // TODO
+    }
+
+    void TCPConnection::send(std::vector<Byte> data) {
+        bool change_poller;
+        if(write_buffer.empty() && !data.empty()) {
+            change_poller = true;
+        }
+        std::copy(data.begin(), data.end(), back_inserter(write_buffer));
+        this->set_poller_to_transmission();
+    }
+
+    std::vector<Byte> TCPConnection::receive(std::size_t size) {
+        std::vector<Byte> ret;
+        auto count = std::min(size, read_buffer.size());
+        ret.reserve(count);
+        auto new_begin = read_buffer.begin() + count;
+        std::copy(read_buffer.begin(), new_begin, back_inserter(ret));
+        read_buffer.erase(read_buffer.begin(), new_begin);
+        if(read_buffer.empty()) {
+            this->on_input_buffer_empty(this);
+        }
+        return ret;
+    }
+
+    std::size_t TCPConnection::get_input_buffer_size() {
+        return this->read_buffer.size();
+    }
+
+    std::size_t TCPConnection::get_output_buffer_size() {
+        return this->write_buffer.size();
     }
 
     void TCPConnection::poller(IPoller *object) {

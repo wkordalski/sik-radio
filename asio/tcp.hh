@@ -43,26 +43,11 @@ namespace asio {
 
         void disconnect(bool reset = false);
 
-        virtual void send(std::vector<Byte> data) {
-            bool change_poller;
-            if(write_buffer.empty() && !data.empty()) {
-                change_poller = true;
-            }
-            std::copy(data.begin(), data.end(), back_inserter(write_buffer));
-            this->set_poller_to_transmission();
-        }
-        virtual std::vector<Byte> receive(std::size_t size) {
-            std::vector<Byte> ret;
-            auto count = std::min(size, read_buffer.size());
-            ret.reserve(count);
-            auto new_begin = read_buffer.begin() + count;
-            std::copy(read_buffer.begin(), new_begin, back_inserter(ret));
-            read_buffer.erase(read_buffer.begin(), new_begin);
-            if(read_buffer.empty()) {
-                this->on_input_buffer_empty(this);
-            }
-            return ret;
-        }
+        virtual void send(std::vector<Byte> data);
+        virtual std::vector<Byte> receive(std::size_t size);
+
+        virtual std::size_t get_input_buffer_size();
+        virtual std::size_t get_output_buffer_size();
 
     protected:
         virtual void poller(IPoller *object);
