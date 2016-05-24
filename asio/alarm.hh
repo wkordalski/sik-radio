@@ -67,5 +67,7 @@ namespace asio {
                 }
             }
         }
+
+        bool empty() { return schedule.empty(); }
     };
 }

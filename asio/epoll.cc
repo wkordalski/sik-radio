@@ -54,19 +54,21 @@ namespace asio {
         delete[] events;
     }
 
-    void Epoll::add(FdConnection &connection, std::initializer_list<Event> events) {
+    void Epoll::add(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) {
         epoll_event e;
-        e.data.fd = connection.get_descriptor();
+        int cfd = connection->get_descriptor();
+        e.data.fd = cfd;
         e.events = epoll_event_type_from_events(events);
 
-        if(epoll_ctl(fd, EPOLL_CTL_ADD, connection.get_descriptor(), &e) < 0) {
+        if(epoll_ctl(fd, EPOLL_CTL_ADD, cfd, &e) < 0) {
             throw std::runtime_error("Adding failed.");
         }
-        connections[connection.get_descriptor()] = &connection;
+        connections[cfd] = connection;
     }
 
-    void Epoll::modify(FdConnection &connection, std::initializer_list<Event> events) {
-        auto connections_iterator = connections.find(connection.get_descriptor());
+    void Epoll::modify(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) {
+        int cfd = connection->get_descriptor();
+        auto connections_iterator = connections.find(cfd);
 
         if(connections_iterator == connections.end()) {
             throw std::runtime_error("Modifying non-existing descriptor.");
@@ -75,23 +77,24 @@ namespace asio {
 
 
         epoll_event e;
-        e.data.fd = connection.get_descriptor();
+        e.data.fd = cfd;
         e.events = epoll_event_type_from_events(events);
 
-        if(epoll_ctl(fd, EPOLL_CTL_MOD, connection.get_descriptor(), &e) < 0) {
+        if(epoll_ctl(fd, EPOLL_CTL_MOD, cfd, &e) < 0) {
             throw std::runtime_error("EPoll modification failed.");
         }
     }
 
-    void Epoll::remove(FdConnection &connection) {
-        if(!connection.valid()) return;
-        auto connections_iterator = connections.find(connection.get_descriptor());
+    void Epoll::remove(std::shared_ptr<FdConnection> connection) {
+        if(!connection->valid()) return;
+        int cfd = connection->get_descriptor();
+        auto connections_iterator = connections.find(cfd);
 
         if(connections_iterator == connections.end()) {
             throw std::runtime_error("Removing non-existing descriptor.");
         }
 
-        if(epoll_ctl(fd, EPOLL_CTL_DEL, connection.get_descriptor(), nullptr) < 0) {
+        if(epoll_ctl(fd, EPOLL_CTL_DEL, cfd, nullptr) < 0) {
             throw std::runtime_error("Removing from epoll failed.");
         }
         connections.erase(connections_iterator);

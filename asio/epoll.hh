@@ -11,7 +11,7 @@ namespace asio {
 
     class Epoll : public IPoller {
         int fd = -1;
-        std::map<int, FdConnection*> connections;
+        std::map<int, std::shared_ptr<FdConnection>> connections;
         int max_events = 16;
         struct epoll_event *events;
 
@@ -20,9 +20,9 @@ namespace asio {
 
         virtual ~Epoll();
 
-        virtual void add(FdConnection &connection, std::initializer_list<Event> events);
-        virtual void modify(FdConnection &connection, std::initializer_list<Event> events);
-        virtual void remove(FdConnection &connection);
+        virtual void add(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events);
+        virtual void modify(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events);
+        virtual void remove(std::shared_ptr<FdConnection> connection);
 
         // false -> timeout exceeded
         virtual bool wait(std::chrono::milliseconds timeout);

@@ -1,28 +1,44 @@
 #include "asio.hh"
 
 namespace asio {
-    class Processor {
+    class IProcessor {
     public:
-        class Task {
-        public:
-            // Interface
-            virtual void on_byte_received(Processor *p, Byte b) = 0;
-        };
-    private:
-        IStream<Byte> *stream;
-        Task *_task;
+        virtual void finish() = 0;
+    };
 
-        void data_received_handler(IStream<Byte> *stream) {
-            this->stream = stream;
+    class Task {
+    public:
+        // Interface
+        virtual void on_byte_received(IProcessor *p, Byte b) = 0;
+    };
+
+    template<typename T, typename = std::enable_if<std::is_base_of<IStream<Byte>, T>::value>>
+    class Processor : public IProcessor {
+    public:
+        Signal<> on_connection_closed;  // for read
+    private:
+        std::shared_ptr<T> stream;
+        Task *_task;
+        Slot<> data_received;
+        Slot<> connection_closed;
+
+        void data_received_handler() {
             while(_task != nullptr && stream->get_input_buffer_size() > 0) {
                 auto data = stream->receive(1);
                 _task->on_byte_received(this, data[0]);
             }
         }
 
+        void connection_closed_handler() {
+            stream.reset();
+            _task = nullptr;
+        }
     public:
-        Processor(IStream<Byte> *stream) : stream(stream) {
-            stream->on_data_received = std::bind(&Processor::data_received_handler, this, std::placeholders::_1);
+        Processor(std::shared_ptr<T> stream)
+                : stream(stream), data_received(std::bind(&Processor::data_received_handler, this)),
+                  connection_closed(std::bind(&Processor::connection_closed_handler, this)) {
+            stream->on_data_received.add(data_received);
+            stream->on_peer_shutdown.add(connection_closed);
         }
 
         ~Processor() {
@@ -32,10 +48,10 @@ namespace asio {
 
         void task(Task *tk) {
             this->_task = tk;
-            data_received_handler(stream);
+            data_received_handler();
         }
 
-        void finish() {
+        virtual void finish() {
             this->_task = nullptr;
         }
 
@@ -43,18 +59,18 @@ namespace asio {
     };
 
     namespace tasks {
-        class ReadLineCRLF : public Processor::Task {
+        class ReadLineCRLF : public Task {
             std::string buffer = "";
-            std::function<void(Processor*,std::string)> action;
+            std::function<void(std::string)> action;
         public:
-            ReadLineCRLF(std::function<void(Processor*,std::string)> action) : action(action) {}
-            virtual void on_byte_received(Processor *p, Byte b) {
+            ReadLineCRLF(std::function<void(std::string)> action) : action(action) {}
+            virtual void on_byte_received(IProcessor *p, Byte b) {
                 if(b == '\n' && buffer.size() > 0 && *(buffer.rbegin()) == '\r') {
                     buffer.erase(buffer.size() - 1);
                     std::string tmp = "";
                     std::swap(tmp, buffer);
                     p->finish();
-                    action(p, std::move(tmp));
+                    action(std::move(tmp));
                     delete this;
                 } else {
                     buffer += char(b);
@@ -62,7 +78,7 @@ namespace asio {
             }
         };
 
-        class ReadChunk : public Processor::Task {
+        class ReadChunk : public Task {
             std::vector<Byte> buffer;
             std::function<void(std::vector<Byte> data)> action;
             std::size_t chunk_size = 0;
@@ -72,7 +88,7 @@ namespace asio {
                 assert(chunk_size > 0);
             }
 
-            virtual void on_byte_received(Processor *p, Byte b) {
+            virtual void on_byte_received(IProcessor *p, Byte b) {
                 buffer.push_back(b);
                 assert(buffer.size() <= chunk_size);
                 if(buffer.size() == chunk_size) {
@@ -85,21 +101,21 @@ namespace asio {
             }
         };
 
-        class ReadByte : public Processor::Task {
+        class ReadByte : public Task {
             std::function<void(Byte)> action;
         public:
             ReadByte(std::function<void(Byte)> action) : action(action) {}
 
-            virtual void on_byte_received(Processor *p, Byte b) {
+            virtual void on_byte_received(IProcessor *p, Byte b) {
                 p->finish();
                 action(b);
                 delete this;
             }
         };
 
-        class InfiniteStdout : public Processor::Task {
+        class InfiniteStdout : public Task {
         public:
-            virtual void on_byte_received(Processor *p, Byte b) {
+            virtual void on_byte_received(IProcessor *p, Byte b) {
                 write(1, &b, 1);
             }
         };

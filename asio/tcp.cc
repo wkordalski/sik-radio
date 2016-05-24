@@ -19,7 +19,7 @@ namespace asio {
         if(addr == nullptr) {
             ::freeaddrinfo(connect_addresses);
             connect_addresses = connect_current = nullptr;
-            this->on_connect_error(this);
+            this->on_connect_error();
             return;
         }
 
@@ -49,7 +49,8 @@ namespace asio {
             connect_addresses = connect_current = nullptr;
             this->peer_shutdowned = false;
             this->set_poller_to_transmission(true);
-            this->on_connect(this);
+            connected = true;
+            this->on_connect();
             return;
         }
     }
@@ -69,7 +70,8 @@ namespace asio {
                 connect_addresses = connect_current = nullptr;
                 this->peer_shutdowned = false;
                 this->set_poller_to_transmission(true);
-                this->on_connect(this);
+                connected = true;
+                this->on_connect();
                 return;
             }
         }
@@ -92,12 +94,12 @@ namespace asio {
                 }
             } else if(red == 0) {
                 this->peer_shutdowned = true;
-                this->on_peer_shutdown(this);
+                this->on_peer_shutdown();
                 this->set_poller_to_transmission();
             } else {
                 // read `red` bytes
                 std::copy(buffer.begin(), buffer.begin() + red, back_inserter(read_buffer));
-                this->on_data_received(this);
+                this->on_data_received();
             }
         }
         if(!write_buffer.empty() && check(Event::Output)) {
@@ -119,11 +121,11 @@ namespace asio {
             } else {
                 auto new_begin = write_buffer.begin() + written;
                 write_buffer.erase(write_buffer.begin(), new_begin);
-                this->on_data_sent(this);
+                this->on_data_sent();
 
                 if(write_buffer.empty()) {
                     this->set_poller_to_transmission();
-                    this->on_output_buffer_empty(this);
+                    this->on_output_buffer_empty();
                 }
             }
         }
@@ -132,9 +134,9 @@ namespace asio {
     void TCPConnection::set_poller_to_connect(bool modify) {
         if(get_poller() != nullptr) {
             if(modify) {
-                get_poller()->modify(*this, {Event::Output, Event::Error});
+                get_poller()->modify(shared_from_this(), {Event::Output, Event::Error});
             } else {
-                get_poller()->add(*this, {Event::Output, Event::Error});
+                get_poller()->add(shared_from_this(), {Event::Output, Event::Error});
             }
         }
     }
@@ -144,29 +146,29 @@ namespace asio {
             if(this->peer_shutdowned) {
                 if (write_buffer.empty()) {
                     if (modify) {
-                        get_poller()->modify(*this, {Event::Error});
+                        get_poller()->modify(shared_from_this(), {Event::Error});
                     } else {
-                        get_poller()->add(*this, {Event::Error});
+                        get_poller()->add(shared_from_this(), {Event::Error});
                     }
                 } else {
                     if (modify) {
-                        get_poller()->modify(*this, {Event::Output, Event::Error});
+                        get_poller()->modify(shared_from_this(), {Event::Output, Event::Error});
                     } else {
-                        get_poller()->add(*this, {Event::Output, Event::Error});
+                        get_poller()->add(shared_from_this(), {Event::Output, Event::Error});
                     }
                 }
             } else {
                 if (write_buffer.empty()) {
                     if (modify) {
-                        get_poller()->modify(*this, {Event::Input, Event::Error});
+                        get_poller()->modify(shared_from_this(), {Event::Input, Event::Error});
                     } else {
-                        get_poller()->add(*this, {Event::Input, Event::Error});
+                        get_poller()->add(shared_from_this(), {Event::Input, Event::Error});
                     }
                 } else {
                     if (modify) {
-                        get_poller()->modify(*this, {Event::Input, Event::Output, Event::Error});
+                        get_poller()->modify(shared_from_this(), {Event::Input, Event::Output, Event::Error});
                     } else {
-                        get_poller()->add(*this, {Event::Input, Event::Output, Event::Error});
+                        get_poller()->add(shared_from_this(), {Event::Input, Event::Output, Event::Error});
                     }
                 }
             }
@@ -190,7 +192,28 @@ namespace asio {
     }
 
     void TCPConnection::disconnect(bool reset) {
-        // TODO
+        if(reset) {
+            // Do simple "close"
+            this->reset_connection();
+        } else {
+            if(!self_shutdowned) {
+                if (peer_shutdowned) {
+                    ::shutdown(fd, 1);
+                    this->on_self_shutdown();
+                    this->close();
+                    this->on_connection_close();
+                    this->connected = false;
+                    this->connection_closed();
+                } else {
+                    // Make shutdown only - receiving still possible
+                    if (valid()) {
+                        ::shutdown(fd, 1);
+                        self_shutdowned = true;
+                        this->on_self_shutdown();
+                    }
+                }
+            }
+        }
     }
 
     void TCPConnection::send(std::vector<Byte> data) {
@@ -210,7 +233,7 @@ namespace asio {
         std::copy(read_buffer.begin(), new_begin, back_inserter(ret));
         read_buffer.erase(read_buffer.begin(), new_begin);
         if(read_buffer.empty()) {
-            this->on_input_buffer_empty(this);
+            this->on_input_buffer_empty();
         }
         return ret;
     }
@@ -225,7 +248,7 @@ namespace asio {
 
     void TCPConnection::poller(IPoller *object) {
         if(object == nullptr) {
-            get_poller()->remove(*this);
+            get_poller()->remove(shared_from_this());
         } else {
             if(connect_addresses != nullptr) {
                 this->set_poller_to_connect(false);

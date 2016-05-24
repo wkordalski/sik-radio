@@ -18,13 +18,18 @@ namespace asio {
         struct addrinfo *connect_current = nullptr;
 
         bool peer_shutdowned = false;
+        bool self_shutdowned = false;
+        bool connected = false;
 
         std::deque<Byte> write_buffer;
         std::deque<Byte> read_buffer;
     public:
-        std::function<void(TCPConnection*)> on_connect_error = [](TCPConnection*){};
-        std::function<void(TCPConnection*)> on_connect = [](TCPConnection*){};
-        std::function<void(TCPConnection*)> on_peer_shutdown = [](TCPConnection*){};
+        Signal<> on_connect_error;
+        Signal<> on_connect;
+        Signal<> on_peer_shutdown;        // he won't write
+        Signal<> on_self_shutdown;        // I won't write
+        Signal<> on_connection_reset;
+        Signal<> on_connection_close;
     private:
         struct addrinfo * get_address(std::string host, std::string service);
         void request_connect();
@@ -35,7 +40,13 @@ namespace asio {
         void set_poller_to_connect(bool modify = true);
         void set_poller_to_transmission(bool modify = true);
     public:
-        TCPConnection() {
+        TCPConnection(Driver &driver) : FdConnection(driver){
+        }
+
+        ~TCPConnection() {
+            if(valid() && this->connected) {
+                this->reset_connection();
+            }
         }
 
         void connect(std::string host, std::string service);
@@ -49,8 +60,30 @@ namespace asio {
         virtual std::size_t get_input_buffer_size();
         virtual std::size_t get_output_buffer_size();
 
+        void close_read() {
+            ::shutdown(fd, 0);
+            // TODO
+        }
+
     protected:
         virtual void poller(IPoller *object);
         virtual void notify(std::vector<Event> events);
+        virtual void reset_connection() {
+            // call on_close?
+            bool is_reset = !this->peer_shutdowned;
+            this->close();
+            if(!this->peer_shutdowned) {
+                this->on_peer_shutdown();
+            }
+            if(!this->self_shutdowned) {
+                this->on_self_shutdown();
+            }
+            if(is_reset) {
+                this->on_connection_reset();
+            } else {
+                this->on_connection_close();
+            }
+            this->connection_closed();
+        }
     };
 }

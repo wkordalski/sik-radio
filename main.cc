@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "asio/driver.hh"
 #include "asio/epoll.hh"
@@ -12,18 +13,20 @@ using namespace std;
 // http://www.radio.kielce.pl/themes/basic/radio_1/player/radio-kielce.pls
 // http://panel.nadaje.com:9212/radiokatowice.m3u
 int main() {
-    asio::Driver<asio::Epoll> D;
-    asio::TCPConnection C;
+    asio::Driver D(new asio::Epoll());
+    auto C = D.make_connection<asio::TCPConnection>();
     auto alarm = D.get_alarm();
-    alarm->at(asio::Alarm::clock::now() + std::chrono::seconds(120), [&D](){D.stop();});
-    ShoutCastClient shc(C, "/radiokatowice", {
+    alarm->at(asio::Alarm::clock::now() + std::chrono::seconds(120), [&D, C](){C->disconnect(true);});
+    ShoutCastClient shc(C, "/", {
             {"User-Agent", "Orban/Coding Technologies AAC/aacPlus Plugin 1.0 (os=Windows NT 5.1 Service Pack 2)"},
             {"Accept", "*/*"},
-            {"Icy-MetaData", "1"}//,
-            //{"Connection", "close"}
+            {"Icy-MetaData", "1"},
+            {"Connection", "close"}
     });
-    C.connect("panel.nadaje.com", 9212);
-    D.add_connection(std::move(C));
+    C->ready([C](){
+        C->connect("stream3.polskieradio.pl", 8906);
+    });
     D.work();
+    clog << "Quited!!!" << endl;
     return 0;
 }

@@ -3,12 +3,15 @@
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <stdexcept>
 #include <set>
 #include <type_traits>
 #include <vector>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "events.hh"
 
 
 namespace asio {
@@ -20,16 +23,15 @@ namespace asio {
 
     class FdConnection;
 
-    template<typename Poller>
     class Driver;
 
     class IPoller {
     public:
         virtual ~IPoller() {};
 
-        virtual void add(FdConnection &connection, std::initializer_list<Event> events) = 0;
-        virtual void modify(FdConnection &connection, std::initializer_list<Event> events) = 0;
-        virtual void remove(FdConnection &connection) = 0;
+        virtual void add(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) = 0;
+        virtual void modify(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) = 0;
+        virtual void remove(std::shared_ptr<FdConnection> connection) = 0;
 
         virtual bool wait(std::chrono::milliseconds timeout) = 0;
     };
@@ -37,10 +39,10 @@ namespace asio {
     template<typename T>
     class IStream {
     public:
-        std::function<void(IStream *)> on_data_received = [](IStream*){};
-        std::function<void(IStream *)> on_data_sent = [](IStream*){};
-        std::function<void(IStream *)> on_input_buffer_empty = [](IStream*){};
-        std::function<void(IStream *)> on_output_buffer_empty = [](IStream*){};
+        Signal<> on_data_received;
+        Signal<> on_data_sent;
+        Signal<> on_input_buffer_empty;
+        Signal<> on_output_buffer_empty;
 
         virtual void send(std::vector<T> data) = 0;
         virtual std::vector<T> receive(std::size_t size) = 0;

@@ -3,10 +3,14 @@
 #include "driver.hh"
 
 namespace asio {
-    class FdConnection {
+    class FdConnection : public std::enable_shared_from_this<FdConnection> {
     protected:
         int fd = -1;
         IPoller *_poller = nullptr;
+        std::function<void()> on_ready = [](){};
+        bool ready_done = false;
+        bool close_done = false;        // after close_done nothing can be done - connection removed from Driver
+        Driver &driver;
 
     protected:
         void nonblocking(bool value) {
@@ -57,12 +61,35 @@ namespace asio {
             }
         }
 
+        virtual void reset_connection() = 0;
+
+        void connection_closed() {
+            auto self = shared_from_this();
+            this->close_done = true;
+            driver.remove_connection(self);
+        }
+
     public:
+        FdConnection(Driver &driver) : driver(driver) {}
+
         int get_descriptor() { return fd; }
-        bool valid() { return fd >= 0; }
+        bool valid() { return fd >= 0 && !close_done; }
+        bool is_closed() { return close_done; }
 
         virtual void notify(std::vector<Event> e) = 0;
 
-        template<typename T> friend class Driver;
+        void trigger_ready() {
+            if(!ready_done) {
+                ready_done = true;
+                this->on_ready();
+                this->on_ready = [](){};
+            }
+        }
+
+        void ready(std::function<void()> on_ready) {
+            this->on_ready = on_ready;
+        }
+
+        friend class Driver;
     };
 }
