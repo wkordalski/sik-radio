@@ -24,7 +24,7 @@ int main() {
             {"Connection", "close"}
     });
     C->ready([C](){
-        C->connect("stream3.polskieradio.pl", 8906);
+        C->connect("198.100.125.242", 80);
     });
     D.work();
     clog << "Quited!!!" << endl;
