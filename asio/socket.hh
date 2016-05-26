@@ -3,7 +3,7 @@
 #include "driver.hh"
 
 namespace asio {
-    class FdConnection : public std::enable_shared_from_this<FdConnection> {
+    class Socket : public std::enable_shared_from_this<Socket> {
     protected:
         int fd = -1;
         IPoller *_poller = nullptr;
@@ -11,6 +11,7 @@ namespace asio {
         bool ready_done = false;
         bool close_done = false;        // after close_done nothing can be done - connection removed from Driver
         Driver &driver;
+        bool in_dtor = false;
 
     protected:
         void nonblocking(bool value) {
@@ -64,13 +65,17 @@ namespace asio {
         virtual void reset_connection() = 0;
 
         void connection_closed() {
-            auto self = shared_from_this();
-            this->close_done = true;
-            driver.remove_connection(self);
+            if(!in_dtor) {
+                auto self = shared_from_this();
+                this->close_done = true;
+                driver.remove_connection(self);
+            } else {
+                this->close_done = true;
+            }
         }
 
     public:
-        FdConnection(Driver &driver) : driver(driver) {}
+        Socket(Driver &driver) : driver(driver) {}
 
         int get_descriptor() { return fd; }
         bool valid() { return fd >= 0 && !close_done; }

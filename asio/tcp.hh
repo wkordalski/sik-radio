@@ -1,7 +1,8 @@
 #pragma once
 
 #include "asio.hh"
-#include "connection.hh"
+#include "socket.hh"
+#include "address.hh"
 
 #include <algorithm>
 #include <cstring>
@@ -13,9 +14,10 @@
 #include <netdb.h>
 
 namespace asio {
-    class TCPConnection : public IStream<Byte>, public FdConnection {
-        struct addrinfo *connect_addresses = nullptr;
-        struct addrinfo *connect_current = nullptr;
+    class TCPSocket : public IStream<Byte>, public Socket {
+        std::vector<Address> connect_addresses;
+        std::vector<Address>::iterator connect_current;
+        bool connecting = false;
 
         bool peer_shutdowned = false;
         bool self_shutdowned = false;
@@ -31,7 +33,6 @@ namespace asio {
         Signal<> on_connection_reset;
         Signal<> on_connection_close;
     private:
-        struct addrinfo * get_address(std::string host, std::string service);
         void request_connect();
 
         void notify_connect(std::vector<Event> events);
@@ -40,10 +41,11 @@ namespace asio {
         void set_poller_to_connect(bool modify = true);
         void set_poller_to_transmission(bool modify = true);
     public:
-        TCPConnection(Driver &driver) : FdConnection(driver){
+        TCPSocket(Driver &driver) : Socket(driver){
         }
 
-        ~TCPConnection() {
+        ~TCPSocket() {
+            in_dtor = true;
             if(valid() && this->connected) {
                 this->reset_connection();
             }

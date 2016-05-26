@@ -42,7 +42,9 @@ namespace asio {
         }
 
         ~Processor() {
-            stream->on_data_received.remove(data_received);
+            if(stream) {
+                stream->on_data_received.remove(data_received);
+            }
             if(this->_task) finish();
         }
 

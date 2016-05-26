@@ -3,7 +3,7 @@
 #include <sys/epoll.h>
 #include <iostream>
 
-#include "connection.hh"
+#include "socket.hh"
 
 namespace {
     unsigned int epoll_event_type_from_event(asio::Event event) {
@@ -14,6 +14,8 @@ namespace {
                 return EPOLLOUT;
             case asio::Event::Error:
                 return EPOLLERR;
+            case asio::Event::RdHangUp:
+                return EPOLLRDHUP;
         }
     }
 
@@ -36,6 +38,9 @@ namespace {
         if(ev & EPOLLERR) {
             ret.push_back(asio::Event::Error);
         }
+        if(ev & EPOLLRDHUP) {
+            ret.push_back(asio::Event::RdHangUp);
+        }
         return ret;
     }
 }
@@ -54,7 +59,7 @@ namespace asio {
         delete[] events;
     }
 
-    void Epoll::add(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) {
+    void Epoll::add(std::shared_ptr<Socket> connection, std::initializer_list<Event> events) {
         epoll_event e;
         int cfd = connection->get_descriptor();
         e.data.fd = cfd;
@@ -66,7 +71,7 @@ namespace asio {
         connections[cfd] = connection;
     }
 
-    void Epoll::modify(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) {
+    void Epoll::modify(std::shared_ptr<Socket> connection, std::initializer_list<Event> events) {
         int cfd = connection->get_descriptor();
         auto connections_iterator = connections.find(cfd);
 
@@ -85,7 +90,7 @@ namespace asio {
         }
     }
 
-    void Epoll::remove(std::shared_ptr<FdConnection> connection) {
+    void Epoll::remove(std::shared_ptr<Socket> connection) {
         if(!connection->valid()) return;
         int cfd = connection->get_descriptor();
         auto connections_iterator = connections.find(cfd);

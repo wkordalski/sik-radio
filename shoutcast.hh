@@ -6,8 +6,8 @@
 #include <boost/regex.hpp>
 
 class ShoutCastClient {
-    asio::Processor<asio::TCPConnection> *processor;
-    std::shared_ptr<asio::TCPConnection> connection;
+    asio::Processor<asio::TCPSocket> *processor;
+    std::shared_ptr<asio::TCPSocket> connection;
     std::string response_proto = "";
     int response_status = -1;
     std::map<std::string, std::string> response_headers;
@@ -15,9 +15,9 @@ class ShoutCastClient {
     asio::Slot<> connection_established;
     asio::Slot<> connection_closed;
     std::string _title = "";
-    bool paused = false;
+    bool paused = true;
 public:
-    ShoutCastClient(std::shared_ptr<asio::TCPConnection> connection, std::string path,
+    ShoutCastClient(std::shared_ptr<asio::TCPSocket> connection, std::string path,
                     std::map<std::string, std::string> headers);
 
     ~ShoutCastClient();

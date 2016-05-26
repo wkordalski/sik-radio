@@ -12,7 +12,7 @@ namespace asio {
 
         IPoller *poller;
         Alarm *alarm;
-        std::set<std::shared_ptr<FdConnection>> connections;
+        std::set<std::shared_ptr<Socket>> connections;
         bool working = false;
 
         const clock::duration max_sleep_time =
@@ -29,7 +29,7 @@ namespace asio {
             delete alarm;
         }
 
-        template<typename T, typename = std::enable_if<std::is_base_of<FdConnection, T>::value>>
+        template<typename T, typename = std::enable_if<std::is_base_of<Socket, T>::value>>
         std::shared_ptr<T> make_connection() {
             auto ptr = std::shared_ptr<T>(new T(*this));
             connections.insert(ptr);
@@ -37,7 +37,7 @@ namespace asio {
             return ptr;
         }
 
-        template<typename T, typename = std::enable_if<std::is_base_of<FdConnection, T>::value>>
+        template<typename T, typename = std::enable_if<std::is_base_of<Socket, T>::value>>
         void remove_connection(std::shared_ptr<T> connection) {
             auto iter = connections.find(connection);
             if(iter != connections.end()) {

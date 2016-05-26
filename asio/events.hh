@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <vector>
+
 namespace asio {
     template<typename... Args>
     class Slot;

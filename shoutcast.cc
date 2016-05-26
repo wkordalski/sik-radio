@@ -1,7 +1,7 @@
 #include "shoutcast.hh"
 
 
-ShoutCastClient::ShoutCastClient(std::shared_ptr<asio::TCPConnection> connection, std::string path,
+ShoutCastClient::ShoutCastClient(std::shared_ptr<asio::TCPSocket> connection, std::string path,
                                  std::map<std::string, std::string> headers)
         : connection(connection),
           connection_closed(std::bind(&ShoutCastClient::on_disconnect, this)) {
@@ -22,7 +22,7 @@ ShoutCastClient::ShoutCastClient(std::shared_ptr<asio::TCPConnection> connection
 
     this->connection = connection;
 
-    processor = new asio::Processor<asio::TCPConnection>(connection);
+    processor = new asio::Processor<asio::TCPSocket>(connection);
 }
 
 ShoutCastClient::~ShoutCastClient() {

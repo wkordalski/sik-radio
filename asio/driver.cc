@@ -1,5 +1,5 @@
 #include "driver.hh"
-#include "connection.hh"
+#include "socket.hh"
 
 namespace asio {
     void Driver::work() {

@@ -18,10 +18,11 @@ namespace asio {
     enum class Event {
         Input,
         Output,
-        Error
+        Error,
+        RdHangUp
     };
 
-    class FdConnection;
+    class Socket;
 
     class Driver;
 
@@ -29,9 +30,9 @@ namespace asio {
     public:
         virtual ~IPoller() {};
 
-        virtual void add(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) = 0;
-        virtual void modify(std::shared_ptr<FdConnection> connection, std::initializer_list<Event> events) = 0;
-        virtual void remove(std::shared_ptr<FdConnection> connection) = 0;
+        virtual void add(std::shared_ptr<Socket> connection, std::initializer_list<Event> events) = 0;
+        virtual void modify(std::shared_ptr<Socket> connection, std::initializer_list<Event> events) = 0;
+        virtual void remove(std::shared_ptr<Socket> connection) = 0;
 
         virtual bool wait(std::chrono::milliseconds timeout) = 0;
     };
@@ -58,7 +59,6 @@ namespace asio {
     };
 
     using Byte = unsigned char;
-    using Message = std::vector<Byte>;
     using Port = unsigned short;
 
     /*
@@ -70,7 +70,7 @@ namespace asio {
         // TODO
     };
 
-    template<typename T, typename = enable_if<is_base_of<TCPConnection, T>>>
+    template<typename T, typename = enable_if<is_base_of<TCPSocket, T>>>
     class TCPListener : public BasicConnectionListener {
         // TODO
     };
@@ -80,7 +80,7 @@ namespace asio {
         // TODO
     };
 
-    class ShoutcastConnection : public TCPConnection {
+    class ShoutcastConnection : public TCPSocket {
         // TODO
     };
 
@@ -93,7 +93,7 @@ namespace asio {
         // TODO
     };
 
-    class TelnetConnection : public ProcessedStreamConnection<TCPConnection> {
+    class TelnetConnection : public ProcessedStreamConnection<TCPSocket> {
         // TODO
     };
 
