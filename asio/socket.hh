@@ -62,13 +62,13 @@ namespace asio {
             }
         }
 
-        virtual void reset_connection() = 0;
+        virtual void quit_socket() = 0;
 
-        void connection_closed() {
+        void socket_closed() {
             if(!in_dtor) {
                 auto self = shared_from_this();
                 this->close_done = true;
-                driver.remove_connection(self);
+                driver.remove_socket(self);
             } else {
                 this->close_done = true;
             }
@@ -80,6 +80,8 @@ namespace asio {
         int get_descriptor() { return fd; }
         bool valid() { return fd >= 0 && !close_done; }
         bool is_closed() { return close_done; }
+
+        Driver & get_driver() { return driver; }
 
         virtual void notify(std::vector<Event> e) = 0;
 

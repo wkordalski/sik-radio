@@ -113,6 +113,7 @@ namespace asio {
             return false;
         }
 
+
         for(int i = 0; i < got_events; i++) {
             int cfd = events[i].data.fd;
             auto connections_iterator = connections.find(cfd);

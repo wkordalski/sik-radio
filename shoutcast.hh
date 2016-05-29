@@ -1,9 +1,6 @@
 #include "asio/tcp.hh"
 #include "asio/processor.hh"
 
-#include <sstream>
-
-#include <boost/regex.hpp>
 
 class ShoutCastClient {
     asio::Processor<asio::TCPSocket> *processor;

@@ -30,7 +30,7 @@ namespace asio {
         }
 
         template<typename T, typename = std::enable_if<std::is_base_of<Socket, T>::value>>
-        std::shared_ptr<T> make_connection() {
+        std::shared_ptr<T> make_socket() {
             auto ptr = std::shared_ptr<T>(new T(*this));
             connections.insert(ptr);
             ptr->set_poller(poller);
@@ -38,7 +38,7 @@ namespace asio {
         }
 
         template<typename T, typename = std::enable_if<std::is_base_of<Socket, T>::value>>
-        void remove_connection(std::shared_ptr<T> connection) {
+        void remove_socket(std::shared_ptr<T> connection) {
             auto iter = connections.find(connection);
             if(iter != connections.end()) {
                 connections.erase(iter);

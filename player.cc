@@ -33,14 +33,25 @@ void on_recv_msg(std::shared_ptr<asio::UDPSocket> socket, ShoutCastClient *clien
         }
     }
 }
+
+void on_recv_data(std::shared_ptr<asio::TCPSocket> socket) {
+    static asio::Alarm::task task = 0;
+
+    if(task != 0) {
+        socket->get_driver().get_alarm()->cancel(task);
+    }
+
+    task = socket->get_driver().get_alarm()->at(asio::Alarm::clock::now()+std::chrono::seconds(5),
+                                                [socket](){socket->disconnect(true);});
+}
 // http://radioluz.pwr.wroc.pl/luz.pls
 // http://stream3.polskieradio.pl:8906/listen.pls
 // http://www.radio.kielce.pl/themes/basic/radio_1/player/radio-kielce.pls
 // http://panel.nadaje.com:9212/radiokatowice.m3u
 int main() {
     asio::Driver D(new asio::Epoll());
-    auto C = D.make_connection<asio::TCPSocket>();
-    auto U = D.make_connection<asio::UDPSocket>();
+    auto C = D.make_socket<asio::TCPSocket>();
+    auto U = D.make_socket<asio::UDPSocket>();
 
     auto alarm = D.get_alarm();
     ShoutCastClient shc(C, "/", {
@@ -49,6 +60,9 @@ int main() {
             {"Icy-MetaData", "1"},
             {"Connection", "close"}
     });
+
+    asio::Slot<> rcv_data(std::bind(&on_recv_data, C));
+    C->on_data_received.add(rcv_data);
 
     asio::Slot<> rcv_msg(std::bind(&on_recv_msg, U, &shc, std::ref(D)));
     U->on_data_received.add(rcv_msg);

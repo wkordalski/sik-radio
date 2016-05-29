@@ -22,6 +22,7 @@ namespace asio {
         RdHangUp
     };
 
+    class Address;
     class Socket;
 
     class Driver;
@@ -54,52 +55,14 @@ namespace asio {
 
 
 
+    template<typename T>
     class IListener {
-        // TODO
+    public:
+        Signal<> on_connection_accepted;
+
+        virtual std::shared_ptr<T> accept(Address &address) = 0;
     };
 
     using Byte = unsigned char;
     using Port = unsigned short;
-
-    /*
-    class UPDConnection : public IStream<Message> {
-        // TODO
-    };
-
-    class BasicConnectionListener : public IListener {
-        // TODO
-    };
-
-    template<typename T, typename = enable_if<is_base_of<TCPSocket, T>>>
-    class TCPListener : public BasicConnectionListener {
-        // TODO
-    };
-
-    template<typename T, typename = enable_if<is_base_of<UDPConnection, T>>>
-    class UDPListener : public BasicConnectionListener {
-        // TODO
-    };
-
-    class ShoutcastConnection : public TCPSocket {
-        // TODO
-    };
-
-    class MessageUDPConnection : public UDPConnection {
-        // TODO
-    };
-
-    template<typename BaseStream>
-    class ProcessedStream : public BaseStream {
-        // TODO
-    };
-
-    class TelnetConnection : public ProcessedStreamConnection<TCPSocket> {
-        // TODO
-    };
-
-    template<typename BaseConnection>
-    class MessageTCPConnection : public ProcessedStreamConnection<BaseConnection> {
-        // TODO
-    };
-     */
 }

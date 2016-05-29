@@ -10,8 +10,6 @@ namespace asio {
             return;
         }
 
-        std::clog << "Requesting connect!" << std::endl;
-
         int cfd = ::socket(connect_current->family_as_int(), connect_current->socket_type_as_int(),
                            connect_current->protocol_as_int());
         if(cfd == -1) {
@@ -69,6 +67,7 @@ namespace asio {
     }
 
     void TCPSocket::notify_transmission(std::vector<Event> events) {
+        auto self = shared_from_this();
         auto check = [&events](Event e)->bool{ return std::find(events.begin(), events.end(), e) != events.end(); };
 
         if(check(Event::RdHangUp)) {
@@ -81,7 +80,8 @@ namespace asio {
                 this->on_self_shutdown();
             }
             this->on_connection_reset();
-            this->connection_closed();
+            this->socket_closed();
+            return;
         }
 
         if(check(Event::Input)) {
@@ -91,7 +91,7 @@ namespace asio {
             if(red < 0) {
                 if(errno != EAGAIN) {
                     // TODO: on_error should be called
-                    throw std::runtime_error("Reading failed - on_error should be called! - TODO");
+                    throw std::runtime_error(strerror(errno));
                 } else {
                     // Read nothing
                 }
@@ -200,7 +200,7 @@ namespace asio {
     void TCPSocket::disconnect(bool reset) {
         if(reset) {
             // Do simple "close"
-            this->reset_connection();
+            this->quit_socket();
         } else {
             if(!self_shutdowned) {
                 if (peer_shutdowned) {
@@ -209,7 +209,7 @@ namespace asio {
                     this->close();
                     this->on_connection_close();
                     this->connected = false;
-                    this->connection_closed();
+                    this->socket_closed();
                 } else {
                     // Make shutdown only - receiving still possible
                     if (valid()) {

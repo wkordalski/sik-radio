@@ -1,5 +1,9 @@
 #include "shoutcast.hh"
 
+#include <sstream>
+
+#include <boost/regex.hpp>
+
 
 ShoutCastClient::ShoutCastClient(std::shared_ptr<asio::TCPSocket> connection, std::string path,
                                  std::map<std::string, std::string> headers)
@@ -130,7 +134,6 @@ void ShoutCastClient::read_metadata_header(asio::Byte size) {
 
 void ShoutCastClient::read_metadata_data(std::vector<asio::Byte> data) {
     using namespace std::placeholders;
-    //static const boost::regex re("^([a-zA-Z0-9]+='[^']*';)*(StreamTitle='[^']*';)([a-zA-Z0-9]+='[^']*';)*$");
     static const boost::regex re("([a-zA-Z0-9]+='[^']*';)*(StreamTitle='([^']*)';)([a-zA-Z0-9]+='[^']*';)*\\0*");
     // read the data
     // parse...

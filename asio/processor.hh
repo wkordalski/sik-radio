@@ -121,5 +121,68 @@ namespace asio {
                 write(1, &b, 1);
             }
         };
+
+        class ReadTelnetLine : public Task {
+        public:
+            Signal<std::string> on_line_received;
+        private:
+            std::string buffer = "";
+            enum class Mode {
+                Text,
+                Command,
+                Option,
+                Subnegotiation,
+                SubnegotiationCommand
+            } mode = Mode::Text;
+
+            static bool is_newline(char c) {
+                if(c == '\n') return true;
+                if(c == '\r') return true;
+                if(c == 0) return true;
+                return false;
+            }
+        public:
+            virtual void on_byte_received(IProcessor *p, Byte b) {
+                switch(mode) {
+                    case Mode::Text:
+                        if(b == 255) {
+                            mode = Mode::Command;
+                        } else {
+                            if(is_newline(b)) {
+                                if(buffer.empty()) return;
+                                else {
+                                    std::string tmp = "";
+                                    std::swap(tmp, buffer);
+                                    on_line_received(tmp);
+                                }
+                            } else {
+                                buffer += b;
+                            }
+                        }
+                        return;
+                    case Mode::Command:
+                        if(b >= 251 && b <= 254) {
+                            mode = Mode::Option;
+                        } else if(b == 255) {
+                            mode = Mode::Command;
+                        } else if(b == 250) {
+                            mode = Mode::Subnegotiation;
+                        } else {
+                            mode = Mode::Text;
+                        }
+                        return;
+                    case Mode::Option:
+                        mode = Mode::Text;
+                        return;
+                    case Mode::Subnegotiation:
+                        if(b == 255) mode = Mode::SubnegotiationCommand;
+                        return;
+                    case Mode::SubnegotiationCommand:
+                        if(b == 240) mode = Mode::Text;
+                        else mode = Mode::Subnegotiation;
+                        return;
+                }
+            }
+        };
     }
 }
